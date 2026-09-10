@@ -1,0 +1,64 @@
+[gd_scene format=3 uid="uid://1ck7fc4ng3m0"]
+
+[ext_resource type="Script" uid="uid://bdb2c8c20uxu5" path="res://main.gd" id="1_ig7tw"]
+[ext_resource type="Script" uid="uid://ev6o0e7rr48f" path="res://camera_3d.gd" id="2_0xm2m"]
+[ext_resource type="Script" uid="uid://c345e2y0t6bgd" path="res://laser_pointer.gd" id="2_lquwl"]
+[ext_resource type="Script" uid="uid://bd6u8lvwthh7m" path="res://laser_canvas.gd" id="4_7mycd"]
+[ext_resource type="Script" uid="uid://bv6xf5cpgf1r1" path="res://trail_canvas.gd" id="5_272bh"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_pjp0d"]
+radius = 0.2241211
+height = 1.6989746
+
+[sub_resource type="Environment" id="Environment_pjp0d"]
+ambient_light_energy = 3.05
+
+[sub_resource type="Compositor" id="Compositor_op3ss"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_op3ss"]
+size = Vector3(2, 2, 0.05)
+
+[sub_resource type="QuadMesh" id="QuadMesh_pjp0d"]
+size = Vector2(2, 2)
+
+[node name="Main" type="Node3D" unique_id=1147289528]
+script = ExtResource("1_ig7tw")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=648773486]
+transform = Transform3D(0.11, 0, 0, 0, -2.644539e-08, -0.11, 0, 0.605, -4.808253e-09, 0.46196413, 2.379, 0)
+mesh = SubResource("CapsuleMesh_pjp0d")
+metadata/_edit_group_ = true
+
+[node name="LaserPointer" type="Node3D" parent="MeshInstance3D" unique_id=817037403]
+transform = Transform3D(1.0000001, 0, 0, 0, 1.0000001, 0, 0, 0, 1.0000001, 0, 0, 0)
+script = ExtResource("2_lquwl")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1844237176]
+transform = Transform3D(0.5882466, 0, -0.80868167, 0, 1, 0, 0.80868167, 0, 0.5882466, -0.6169013, 2.5168626, 0.66740465)
+script = ExtResource("2_0xm2m")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=619998172]
+environment = SubResource("Environment_pjp0d")
+compositor = SubResource("Compositor_op3ss")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1962811665]
+transform = Transform3D(-0.11486364, 0.81027687, -0.57468057, -0.8255971, 0.2438575, 0.50884473, 0.5524453, 0.53290236, 0.6409519, -6.808878, 4.7634716, 3.871052)
+
+[node name="LaserCanvas" type="StaticBody3D" parent="." unique_id=2058612213]
+transform = Transform3D(-0.0017878227, -0.99998784, -0.0045992434, 0.9996749, -0.0016702145, -0.025449652, 0.025441658, -0.004643202, 0.9996655, 0.37045538, 1.9253395, -0.9257469)
+script = ExtResource("4_7mycd")
+metadata/_edit_group_ = true
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="LaserCanvas" unique_id=1134485160]
+shape = SubResource("BoxShape3D_op3ss")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="LaserCanvas" unique_id=23094029]
+mesh = SubResource("QuadMesh_pjp0d")
+
+[node name="SubViewport" type="SubViewport" parent="LaserCanvas" unique_id=681589047]
+transparent_bg = true
+size = Vector2i(1024, 1024)
+render_target_update_mode = 4
+
+[node name="TrailCanvas" type="Node2D" parent="LaserCanvas/SubViewport" unique_id=774531246]
+script = ExtResource("5_272bh")
