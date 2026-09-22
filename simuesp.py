@@ -1,5 +1,4 @@
 import socket
-import struct
 import time
 import math
 import random
@@ -24,7 +23,7 @@ gyro_bias_y = -1.8  # -1.8 deg/s constant offset
 gyro_bias_z = 0.9   # +0.9 deg/s constant offset
 
 start_time = time.time()
-print(f"Streaming REALISTIC noisy IMU to {DEST_IP}:{DEST_PORT} at {UDP_FREQ}Hz...")
+print(f"Streaming ESP32-formatted TEXT packets to {DEST_IP}:{DEST_PORT} at {UDP_FREQ}Hz...")
 
 try:
     while True:
@@ -46,29 +45,32 @@ try:
         true_az =  math.cos(roll_rad) * math.cos(pitch_rad)
 
         # 3. Add Sensor Imperfections
-        # Slow random thermal drift over time
         gyro_bias_x += random.gauss(0, GYRO_BIAS_DRIFT * DT)
         gyro_bias_y += random.gauss(0, GYRO_BIAS_DRIFT * DT)
         gyro_bias_z += random.gauss(0, GYRO_BIAS_DRIFT * DT)
 
-        # Corrupt Gyroscope measurements (True signal + Bias + White Noise)
         gx = true_pitch_rate + gyro_bias_x + random.gauss(0, GYRO_NOISE_STD)
         gy = true_yaw_rate   + gyro_bias_y + random.gauss(0, GYRO_NOISE_STD)
         gz = true_roll_rate  + gyro_bias_z + random.gauss(0, GYRO_NOISE_STD)
 
-        # Corrupt Accelerometer measurements (True signal + White Noise)
         ax = true_ax + random.gauss(0, ACCEL_NOISE_STD)
         ay = true_ay + random.gauss(0, ACCEL_NOISE_STD)
         az = true_az + random.gauss(0, ACCEL_NOISE_STD)
 
+        # Match unsigned long timestamp (in microseconds)
         timestamp = int(elapsed * 1_000_000) & 0xFFFFFFFF
         touch = 0
 
-        # Pack exact 32-byte struct layout
-        packet = struct.pack("<I i f f f f f f", timestamp, touch, ax, ay, az, gx, gy, gz)
+        # --- MATCH ESP32 SNPRINTF MATCH EXACTLY ---
+        # %lu,%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f
+        buf = f"{timestamp},{touch},{ax:.4f},{ay:.4f},{az:.4f},{gx:.4f},{gy:.4f},{gz:.4f}"
+        
+        # Convert text string to raw bytes for network delivery
+        packet = buf.encode('utf-8')
         
         sock.sendto(packet, (DEST_IP, DEST_PORT))
         time.sleep(DT)
 
 except KeyboardInterrupt:
     print("\nSimulation stopped.")
+

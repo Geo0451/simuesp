@@ -6,9 +6,7 @@
 [ext_resource type="Script" uid="uid://bd6u8lvwthh7m" path="res://laser_canvas.gd" id="4_7mycd"]
 [ext_resource type="Script" uid="uid://bv6xf5cpgf1r1" path="res://trail_canvas.gd" id="5_272bh"]
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_pjp0d"]
-radius = 0.2241211
-height = 1.6989746
+[sub_resource type="SphereMesh" id="SphereMesh_lquwl"]
 
 [sub_resource type="Environment" id="Environment_pjp0d"]
 ambient_light_energy = 3.05
@@ -25,8 +23,8 @@ size = Vector2(2, 2)
 script = ExtResource("1_ig7tw")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=648773486]
-transform = Transform3D(0.11, 0, 0, 0, -2.644539e-08, -0.11, 0, 0.605, -4.808253e-09, 0.46196413, 2.379, 0)
-mesh = SubResource("CapsuleMesh_pjp0d")
+transform = Transform3D(0.04, 0, 0, 0, -1.7484555e-09, -0.04, 0, 0.04, -1.7484555e-09, 0.46196413, 2.379, 0)
+mesh = SubResource("SphereMesh_lquwl")
 metadata/_edit_group_ = true
 
 [node name="LaserPointer" type="Node3D" parent="MeshInstance3D" unique_id=817037403]
@@ -34,8 +32,9 @@ transform = Transform3D(1.0000001, 0, 0, 0, 1.0000001, 0, 0, 0, 1.0000001, 0, 0,
 script = ExtResource("2_lquwl")
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=1844237176]
-transform = Transform3D(0.5882466, 0, -0.80868167, 0, 1, 0, 0.80868167, 0, 0.5882466, -0.6169013, 2.5168626, 0.66740465)
+transform = Transform3D(0.99921876, -0.026841769, 0.02900871, 0.025072096, 0.9978993, 0.059736434, -0.030551204, -0.058962453, 0.9977926, 0.47296965, 2.413537, 0.8016268)
 script = ExtResource("2_0xm2m")
+sensitivity = 0.002
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=619998172]
 environment = SubResource("Environment_pjp0d")
@@ -45,7 +44,7 @@ compositor = SubResource("Compositor_op3ss")
 transform = Transform3D(-0.11486364, 0.81027687, -0.57468057, -0.8255971, 0.2438575, 0.50884473, 0.5524453, 0.53290236, 0.6409519, -6.808878, 4.7634716, 3.871052)
 
 [node name="LaserCanvas" type="StaticBody3D" parent="." unique_id=2058612213]
-transform = Transform3D(-0.0017878227, -0.99998784, -0.0045992434, 0.9996749, -0.0016702145, -0.025449652, 0.025441658, -0.004643202, 0.9996655, 0.37045538, 1.9253395, -0.9257469)
+transform = Transform3D(-0.0017878227, -0.99998784, -0.0045992434, 0.9996749, -0.0016702145, -0.025449652, 0.025441658, -0.004643202, 0.9996655, 0.53590524, 2.2362, -0.9257469)
 script = ExtResource("4_7mycd")
 metadata/_edit_group_ = true
 
