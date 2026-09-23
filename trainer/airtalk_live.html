@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AirTalk — Live</title>
+<style>
+  :root{
+    --paper:#EDE6D3;
+    --paper-edge:#E2D9BF;
+    --rule:#C9BFA0;
+    --margin-rule:#B8664F;
+    --ink:#1F2E4A;
+    --ink-soft:#4A5C82;
+    --accent:#9C4A2E;
+    --well-bg:#12151C;
+    --well-bg2:#1B2030;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:#0E1015;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:var(--ink);
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    overflow:hidden;
+  }
+
+  /* ---------- header ---------- */
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:14px 22px;
+    background:#0E1015;
+    border-bottom:1px solid #22262f;
+    flex-wrap:wrap;
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+  }
+  .brand .nib{
+    width:9px;height:9px;border-radius:2px 2px 2px 0;
+    background:var(--accent);
+    transform:rotate(45deg);
+    box-shadow:0 0 8px var(--accent);
+  }
+  .brand h1{
+    font-size:17px;
+    font-weight:600;
+    letter-spacing:0.2px;
+    color:#EDE6D3;
+    margin:0;
+  }
+  .brand span.sub{
+    font-size:12px;
+    color:#6b7280;
+  }
+
+  .controls{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .controls input[type=text]{
+    background:#171a21;
+    border:1px solid #2a2f3a;
+    color:#cfd3da;
+    font-size:12.5px;
+    padding:7px 10px;
+    border-radius:7px;
+    width:190px;
+    outline:none;
+  }
+  .controls input[type=text]:focus{border-color:var(--accent);}
+  button{
+    font-family:inherit;
+    font-size:12.5px;
+    font-weight:600;
+    padding:7px 13px;
+    border-radius:7px;
+    border:1px solid #2a2f3a;
+    background:#171a21;
+    color:#cfd3da;
+    cursor:pointer;
+    transition:background .15s, border-color .15s, color .15s;
+  }
+  button:hover{border-color:#3a4150;}
+  button.primary{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#fff;
+  }
+  button.primary:hover{background:#B05837;}
+  button:disabled{opacity:.4;cursor:default;}
+
+  .status{
+    display:flex;align-items:center;gap:6px;
+    font-size:12px;color:#8a9099;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:#4a5060;transition:background .2s, box-shadow .2s;}
+  .dot.live{background:#5FBF7A;box-shadow:0 0 6px #5FBF7A;}
+  .dot.err{background:#C0564A;box-shadow:0 0 6px #C0564A;}
+
+  .caps-light{
+    display:flex;align-items:center;gap:6px;
+    font-size:11px;font-weight:700;letter-spacing:0.5px;
+    color:#5a606c;
+    padding:5px 9px;
+    border:1px solid #2a2f3a;
+    border-radius:6px;
+    transition:color .2s, border-color .2s;
+  }
+  .caps-light .bulb{width:6px;height:6px;border-radius:50%;background:#333844;transition:background .2s, box-shadow .2s;}
+  .caps-light.on{color:#EDC26B;border-color:#5a4a2a;}
+  .caps-light.on .bulb{background:#EDC26B;box-shadow:0 0 6px #EDC26B;}
+
+  /* ---------- main layout ---------- */
+  main{
+    flex:1;
+    display:flex;
+    gap:0;
+    min-height:0;
+  }
+
+  /* ---------- paper ---------- */
+  .paper-wrap{
+    flex:1;
+    padding:36px 0 36px 0;
+    overflow-y:auto;
+    display:flex;
+    justify-content:center;
+  }
+  .paper{
+    position:relative;
+    width:min(760px, 88%);
+    min-height:100%;
+    background:var(--paper);
+    background-image:repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 43px,
+      var(--rule) 43px,
+      var(--rule) 44px
+    );
+    box-shadow:0 20px 60px rgba(0,0,0,.45);
+    border-radius:2px;
+    padding:52px 46px 52px 68px;
+    line-height:44px;
+    font-size:30px;
+    font-family:"Segoe Script","Bradley Hand","Apple Chancery",cursive;
+    color:var(--ink);
+    word-wrap:break-word;
+  }
+  .paper::before{
+    content:"";
+    position:absolute;
+    top:0;bottom:0;left:44px;
+    width:1px;
+    background:var(--margin-rule);
+    opacity:.55;
+  }
+  .placeholder{
+    color:#B7AD90;
+    font-size:20px;
+    font-family:-apple-system,sans-serif;
+    font-style:italic;
+  }
+  .char{
+    display:inline-block;
+    opacity:0;
+    transform:translateY(10px) scale(.4) rotate(var(--tilt,0deg));
+    animation:popIn .5s cubic-bezier(.2,1.4,.4,1) forwards;
+  }
+  .char.space{width:0.55em;}
+  @keyframes popIn{
+    0%{opacity:0; transform:translateY(10px) scale(.35) rotate(var(--tilt,0deg));}
+    60%{opacity:1; transform:translateY(-3px) scale(1.12) rotate(var(--tilt,0deg));}
+    100%{opacity:1; transform:translateY(0) scale(1) rotate(var(--tilt,0deg));}
+  }
+
+  /* ---------- ink well / sensor panel ---------- */
+  .well-wrap{
+    width:230px;
+    flex-shrink:0;
+    padding:28px 20px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:14px;
+    border-left:1px solid #1b1e26;
+    background:linear-gradient(180deg,#0E1015,#0B0D11);
+  }
+  .well-label{
+    font-size:11px;
+    color:#6b7280;
+    letter-spacing:.3px;
+  }
+  .well{
+    position:relative;
+    width:168px;height:168px;
+    border-radius:50%;
+    background:radial-gradient(circle at 50% 45%, var(--well-bg2), var(--well-bg) 75%);
+    box-shadow:
+      inset 0 0 30px rgba(0,0,0,.6),
+      0 0 0 1px #23272f,
+      0 10px 30px rgba(0,0,0,.5);
+    overflow:hidden;
+  }
+  .well canvas{
+    position:absolute;inset:0;
+    width:100%;height:100%;
+  }
+  .well-state{
+    font-size:12px;
+    color:#7b8290;
+    min-height:16px;
+    transition:color .2s;
+  }
+  .well-state.writing{color:#E0975A;font-weight:600;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="nib"></div>
+    <h1>AirTalk</h1>
+    <span class="sub">live air-writing demo</span>
+  </div>
+
+  <div class="controls">
+    <div class="caps-light" id="capsLight"><span class="bulb"></span>CAPS</div>
+    <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">not connected</span></div>
+    <input type="text" id="wsUrl" value="ws://localhost:8765" spellcheck="false">
+    <button id="connectBtn">Connect</button>
+    <button id="simBtn">Simulate</button>
+    <button id="clearBtn">Clear</button>
+  </div>
+</header>
+
+<main>
+  <div class="paper-wrap">
+    <div class="paper" id="paper">
+      <span class="placeholder" id="placeholder">waiting for the pen…</span>
+    </div>
+  </div>
+
+  <div class="well-wrap">
+    <div class="well-label">live stroke</div>
+    <div class="well"><canvas id="wellCanvas"></canvas></div>
+    <div class="well-state" id="wellState">idle</div>
+  </div>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  // ================= state =================
+  const state = {
+    ws:null,
+    connected:false,
+    capsOn:false,
+    touched:false,
+    magnitude:0,       // smoothed ambient motion energy, 0..1-ish (drives the background glow)
+    targetMagnitude:0,
+    simTimer:null,
+    // live stroke trace: the real (or simulated) points streamed in during the current touch
+    trace:[],          // [{x,y}, ...] in raw/arbitrary units -- auto-fit to the panel each frame
+    traceAlpha:0,       // 1 while writing/fresh, eases to 0 after release
+  };
+
+  const paper = document.getElementById('paper');
+  const placeholder = document.getElementById('placeholder');
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const capsLight = document.getElementById('capsLight');
+  const wellState = document.getElementById('wellState');
+  const wsUrlInput = document.getElementById('wsUrl');
+  const connectBtn = document.getElementById('connectBtn');
+  const simBtn = document.getElementById('simBtn');
+  const clearBtn = document.getElementById('clearBtn');
+
+  // ================= paper / characters =================
+  function addChar(ch){
+    if (placeholder && placeholder.parentNode) placeholder.remove();
+    const span = document.createElement('span');
+    if (ch === ' '){
+      span.className = 'char space';
+      span.textContent = '\u00A0';
+    } else {
+      span.className = 'char';
+      span.textContent = ch;
+      const tilt = (Math.random()*10 - 5).toFixed(1);
+      span.style.setProperty('--tilt', tilt + 'deg');
+    }
+    paper.appendChild(span);
+    paper.parentNode.scrollTop = paper.parentNode.scrollHeight;
+  }
+
+  function clearPaper(){
+    paper.innerHTML = '';
+    paper.appendChild(placeholder);
+  }
+
+  function setCaps(on){
+    state.capsOn = on;
+    capsLight.classList.toggle('on', !!on);
+  }
+
+  function setWriting(on){
+    state.touched = on;
+    state.targetMagnitude = on ? 0.45 : 0.06;
+    wellState.textContent = on ? 'writing…' : 'idle';
+    wellState.classList.toggle('writing', on);
+    if (on) state.traceAlpha = 1;
+  }
+
+  function startTrace(){
+    state.trace = [];
+    state.traceAlpha = 1;
+  }
+
+  function pushTracePoint(x, y){
+    state.trace.push({x, y});
+    // keep it bounded so a very long or stuck touch doesn't grow forever
+    if (state.trace.length > 600) state.trace.shift();
+  }
+
+  // ================= ink well visualization =================
+  const canvas = document.getElementById('wellCanvas');
+  const ctx = canvas.getContext('2d');
+  let dpr = Math.max(1, window.devicePixelRatio || 1);
+
+  function resizeCanvas(){
+    const r = canvas.parentElement.getBoundingClientRect();
+    canvas.width = r.width * dpr;
+    canvas.height = r.height * dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  const idleColor = [94, 122, 176];   // calm blue-grey
+  const activeColor = [224, 151, 90]; // warm gold-orange
+  function lerp(a,b,t){return a+(b-a)*t;}
+
+  let t0 = performance.now();
+  function drawWell(now){
+    const dt = (now - t0)/1000;
+    t0 = now;
+
+    state.magnitude = lerp(state.magnitude, state.targetMagnitude, Math.min(1, dt*3));
+    if (!state.touched) state.traceAlpha = Math.max(0, state.traceAlpha - dt*0.6);
+
+    const w = canvas.width/dpr, h = canvas.height/dpr;
+    ctx.clearRect(0,0,w,h);
+
+    const cx = w/2, cy = h/2;
+    const baseR = Math.min(w,h)*0.30;
+    const energy = state.magnitude;
+    const mixT = Math.min(1, energy*1.8);
+    const col = [
+      Math.round(lerp(idleColor[0], activeColor[0], mixT)),
+      Math.round(lerp(idleColor[1], activeColor[1], mixT)),
+      Math.round(lerp(idleColor[2], activeColor[2], mixT)),
+    ];
+
+    // ---- ambient glow: a quiet, breathing backdrop that tracks overall motion energy ----
+    const layers = 2;
+    for (let L=layers; L>=1; L--){
+      const layerT = now/1000;
+      const wobble = 4 + energy*16;
+      const speed = 0.5 + L*0.3 + energy*0.8;
+      const points = 56;
+      ctx.beginPath();
+      for (let i=0;i<=points;i++){
+        const a = (i/points)*Math.PI*2;
+        const n = Math.sin(a*3 + layerT*speed + L) * 0.5
+                + Math.sin(a*5 - layerT*speed*0.7 + L*2) * 0.5;
+        const r = baseR - (L-1)*10 + n*wobble;
+        const x = cx + Math.cos(a)*r;
+        const y = cy + Math.sin(a)*r*0.94;
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${0.08 + (layers-L)*0.05 + energy*0.05})`;
+      ctx.fill();
+    }
+    const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,baseR*0.85);
+    grad.addColorStop(0, `rgba(${col[0]},${col[1]},${col[2]},${0.22+energy*0.18})`);
+    grad.addColorStop(1, `rgba(${col[0]},${col[1]},${col[2]},0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx,cy, baseR*0.85, 0, Math.PI*2);
+    ctx.fill();
+
+    // ---- the real stroke: auto-fit the incoming (x,y) trace to the panel and ink it in ----
+    const pts = state.trace;
+    if (pts.length > 1 && state.traceAlpha > 0.01){
+      let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+      for (const p of pts){
+        if (p.x<minX) minX=p.x; if (p.x>maxX) maxX=p.x;
+        if (p.y<minY) minY=p.y; if (p.y>maxY) maxY=p.y;
+      }
+      const spanX = Math.max(maxX-minX, 0.6);
+      const spanY = Math.max(maxY-minY, 0.6);
+      const span = Math.max(spanX, spanY);
+      const midX = (minX+maxX)/2, midY = (minY+maxY)/2;
+      const pad = 0.78; // fraction of well radius the stroke is allowed to fill
+      const scale = (baseR*pad) / (span/2);
+
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = `rgba(${activeColor[0]},${activeColor[1]},${activeColor[2]},${0.85*state.traceAlpha})`;
+      ctx.shadowColor = `rgba(${activeColor[0]},${activeColor[1]},${activeColor[2]},0.9)`;
+      ctx.shadowBlur = 10;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let i=0;i<pts.length;i++){
+        const x = cx + (pts[i].x - midX)*scale;
+        const y = cy + (pts[i].y - midY)*scale;
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // a small bright nib at the leading (most recent) point while actively writing
+      if (state.touched){
+        const last = pts[pts.length-1];
+        const x = cx + (last.x - midX)*scale;
+        const y = cy + (last.y - midY)*scale;
+        ctx.beginPath();
+        ctx.arc(x,y,3.5,0,Math.PI*2);
+        ctx.fillStyle = '#FFE8C8';
+        ctx.fill();
+      }
+    }
+
+    requestAnimationFrame(drawWell);
+  }
+  requestAnimationFrame(drawWell);
+
+  // ================= websocket =================
+  function setStatus(mode, text){
+    statusDot.className = 'dot' + (mode ? ' '+mode : '');
+    statusText.textContent = text;
+  }
+
+  function connect(){
+    const url = wsUrlInput.value.trim();
+    if (!url) return;
+    try { state.ws = new WebSocket(url); }
+    catch(e){ setStatus('err','invalid url'); return; }
+
+    setStatus('', 'connecting…');
+    connectBtn.disabled = true;
+
+    state.ws.onopen = () => {
+      state.connected = true;
+      setStatus('live', 'connected');
+      connectBtn.textContent = 'Disconnect';
+      connectBtn.disabled = false;
+    };
+    state.ws.onclose = () => {
+      state.connected = false;
+      setStatus('err', 'disconnected');
+      connectBtn.textContent = 'Connect';
+      connectBtn.disabled = false;
+    };
+    state.ws.onerror = () => {
+      setStatus('err', 'connection error');
+    };
+    state.ws.onmessage = (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch(e){ return; }
+      handleMessage(msg);
+    };
+  }
+
+  function disconnect(){
+    if (state.ws) state.ws.close();
+    state.ws = null;
+  }
+
+  connectBtn.addEventListener('click', () => {
+    if (state.connected) disconnect(); else connect();
+  });
+
+  function handleMessage(msg){
+    switch(msg.type){
+      case 'imu': {
+        const gx = msg.gx||0, gy = msg.gy||0, gz = msg.gz||0;
+        const gmag = Math.sqrt(gx*gx+gy*gy+gz*gz) / 1000; // rough normalize, dps -> ~0-1
+        setWriting(!!msg.touched);
+        state.targetMagnitude = Math.max(state.targetMagnitude, Math.min(1, gmag));
+        if (msg.touched && typeof msg.x === 'number' && typeof msg.y === 'number'){
+          pushTracePoint(msg.x, msg.y);
+        }
+        break;
+      }
+      case 'touch_start':
+        setWriting(true);
+        startTrace();
+        break;
+      case 'touch_end':
+        setWriting(false);
+        break;
+      case 'char':
+        if (typeof msg.char === 'string' && msg.char.length) addChar(msg.char);
+        break;
+      case 'caps':
+        setCaps(!!msg.on);
+        break;
+      case 'clear':
+        clearPaper();
+        break;
+      default:
+        break;
+    }
+  }
+
+  // ================= simulate mode (offline rehearsal) =================
+  const DEMO_SENTENCE = "Hello World";
+
+  // Draws a small random lissajous-style doodle to stand in for a real stroke trace when
+  // there's no hardware connected -- same trace pipeline a live packet feed would drive.
+  function simulateStroke(durationMs, onDone){
+    startTrace();
+    const a = 1 + Math.random()*2, b = 1 + Math.random()*2;
+    const phase = Math.random()*Math.PI*2;
+    const steps = Math.max(10, Math.round(durationMs/22));
+    let i = 0;
+    function tick(){
+      if (i > steps){ onDone(); return; }
+      const u = i/steps;
+      const x = Math.sin(u*Math.PI*2*a + phase) * (0.6 + 0.4*Math.sin(u*Math.PI));
+      const y = Math.sin(u*Math.PI*2*b) * (0.6 + 0.4*Math.sin(u*Math.PI));
+      pushTracePoint(x, y);
+      state.targetMagnitude = 0.25 + Math.random()*0.35;
+      i++;
+      state.simTimer = setTimeout(tick, 22);
+    }
+    tick();
+  }
+
+  function simulateSentence(sentence){
+    if (state.simTimer) return; // already running
+    clearPaper();
+    setCaps(false);
+    let i = 0;
+
+    function step(){
+      if (i >= sentence.length){
+        state.simTimer = null;
+        setWriting(false);
+        simBtn.disabled = false;
+        return;
+      }
+      const ch = sentence[i];
+      i++;
+
+      if (ch === ' '){
+        addChar(' ');
+        state.simTimer = setTimeout(step, 180);
+        return;
+      }
+
+      const isUpper = ch === ch.toUpperCase() && ch.toLowerCase() !== ch.toUpperCase();
+      if (isUpper !== state.capsOn) setCaps(isUpper);
+
+      setWriting(true);
+      const writeMs = 380 + Math.random()*380;
+
+      simulateStroke(writeMs, () => {
+        // touch-release: character resolved, pop it onto the page
+        setWriting(false);
+        addChar(ch);
+        const pauseMs = 150 + Math.random()*220;
+        state.simTimer = setTimeout(step, pauseMs);
+      });
+    }
+    step();
+  }
+
+  simBtn.addEventListener('click', () => {
+    simBtn.disabled = true;
+    simulateSentence(DEMO_SENTENCE);
+  });
+
+  clearBtn.addEventListener('click', () => {
+    if (state.simTimer){ clearTimeout(state.simTimer); state.simTimer = null; simBtn.disabled = false; }
+    clearPaper();
+    setWriting(false);
+    setCaps(false);
+    state.trace = [];
+    state.traceAlpha = 0;
+  });
+
+})();
+</script>
+</body>
+</html>
