@@ -10,17 +10,29 @@ Metrics per variant:
   same-day kN random N templates per class within one day, tested on the rest (avg over days)
   cross-day   all templates from one day, tested on every other day (avg over days)
 """
+
 import argparse
 import sys
+import time
 from collections import Counter
 
 import numpy as np
-
-from airpen_common import (DATA_DIR, VARIANTS, PenStream, build_sample, derive, features, list_samples,
-                           load_sample, prepare_meta, vec)
+from airpen_common import (
+    DATA_DIR,
+    VARIANTS,
+    PenStream,
+    build_sample,
+    derive,
+    features,
+    list_samples,
+    load_sample,
+    prepare_meta,
+    vec,
+)
 
 try:
     from numba import njit
+
     HAVE_NUMBA = True
 except ImportError:
     HAVE_NUMBA = False
@@ -47,10 +59,8 @@ def dtw(a, b, band):
                 d = a[i - 1, k] - b[j - 1, k]
                 c += d * d
             best = prev[j - 1]
-            if prev[j] < best:
-                best = prev[j]
-            if cur[j - 1] < best:
-                best = cur[j - 1]
+            best = min(best, prev[j])
+            best = min(best, cur[j - 1])
             cur[j] = np.sqrt(c) + best
         prev, cur = cur, prev
     return prev[m]
@@ -95,7 +105,13 @@ def within_group(D, y, groups, k, rng, trials=100):
         idx = np.where(groups == g)[0]
         if len(idx) < 4:
             continue
-        accs = [a for a in (_split_acc(D[np.ix_(idx, idx)], y[idx], k, rng) for _ in range(trials)) if a is not None]
+        accs = [
+            a
+            for a in (
+                _split_acc(D[np.ix_(idx, idx)], y[idx], k, rng) for _ in range(trials)
+            )
+            if a is not None
+        ]
         if accs:
             res.append(np.mean(accs))
     return float(np.mean(res)) if res else float("nan")
@@ -138,17 +154,25 @@ def evaluate(args):
         groups.append(s["session"][:8] if args.by == "day" else s["session"])
     y, groups = np.array(y), np.array(groups)
     counts = Counter(y)
-    print(f"{len(y)} samples | {len(counts)} classes | per class {min(counts.values())}-{max(counts.values())} "
-          f"| {len(set(groups))} {args.by}(s) | numba: {'yes' if HAVE_NUMBA else 'NO (pip install numba for ~100x speed)'}")
+    print(
+        f"{len(y)} samples | {len(counts)} classes | per class {min(counts.values())}-{max(counts.values())} "
+        f"| {len(set(groups))} {args.by}(s) | numba: {'yes' if HAVE_NUMBA else 'NO (pip install numba for ~100x speed)'}"
+    )
     if bad_heading:
-        print(f"note: {bad_heading} samples started with the pen nearly vertical, so heading alignment was skipped for them")
+        print(
+            f"note: {bad_heading} samples started with the pen nearly vertical, so heading alignment was skipped for them"
+        )
     if min(counts.values()) < 2:
         print("warning: some classes have a single sample and can't be tested")
 
     band = max(1, int(round(args.band * args.len)))
     ks = [k for k in (1, 2, 3, 5) if k < max(counts.values())] or [1]
     rng = np.random.default_rng(0)
-    head = f"{'variant':<50}{'LOO':>8}" + "".join(f"{'same-'+args.by+' k='+str(k):>16}" for k in ks) + f"{'cross-'+args.by:>14}"
+    head = (
+        f"{'variant':<50}{'LOO':>8}"
+        + "".join(f"{'same-' + args.by + ' k=' + str(k):>16}" for k in ks)
+        + f"{'cross-' + args.by:>14}"
+    )
     print("\n" + head + "\n" + "-" * len(head))
     res = {}
     for v, desc in VARIANTS.items():
@@ -176,6 +200,14 @@ def evaluate(args):
 
 
 # ---- live recognition -----------------------------------------------------------------------
+# Capslock is server-side only: the .ino keeps sending raw touch events unchanged. A quick
+# touch (<TAP_S) is a "tap". Two taps landing within DOUBLE_TAP_GAP_S of each other toggle
+# caps. A tap that isn't followed by a second one in time is just discarded as noise -- there's
+# no separate timer thread; the next incoming touch (tap or real write) resolves it.
+TAP_S = 0.25
+DOUBLE_TAP_GAP_S = 0.8
+
+
 def live(args):
     v = args.variant.upper()
     paths = list_samples(args.data, args.user)
@@ -192,29 +224,60 @@ def live(args):
 
     stream = PenStream(args.port)
     meta = prepare_meta(stream, args.data, False, not args.no_rebias)
-    print(f"\nLoaded {len(y)} templates ({len(set(y))} classes), variant {v}. Write a character. Ctrl+C to quit.\n")
+    caps = False
+    pending_tap_t = None  # wall-clock time of an unresolved first tap
+    print(
+        f"\nLoaded {len(y)} templates ({len(set(y))} classes), variant {v}. "
+        f"Write a character, or double-tap to toggle caps. Ctrl+C to quit.\n"
+    )
+    print(f"  [caps: {'ON ' if caps else 'off'}]")
     try:
         while True:
             cap = stream.next_touch(release_ms=args.release_ms)
+            now = time.monotonic()
+
+            if cap["duration"] < TAP_S:
+                if (
+                    pending_tap_t is not None
+                    and now - pending_tap_t <= DOUBLE_TAP_GAP_S
+                ):
+                    caps = not caps
+                    pending_tap_t = None
+                    print(f"  [caps: {'ON ' if caps else 'off'}]")
+                else:
+                    pending_tap_t = now  # wait to see if a second tap follows
+                continue
+            pending_tap_t = None  # a real write cancels any dangling single tap
+
             if cap["duration"] < 0.4:
                 continue
             d = derive(build_sample(cap, meta))
             x = vec(features(d, v), d["fs"], args.len)
             dist = np.array([dtw(x, t, band) for t in X])
-            ranked = sorted(((dist[y == c].min(), c) for c in set(y)))
+            ranked = sorted((dist[y == c].min(), c) for c in set(y))
             best, second = ranked[0], ranked[1] if len(ranked) > 1 else (np.inf, "-")
             top3 = " | ".join(f"{c}: {dd:.1f}" for dd, c in ranked[:3])
-            print(f"  -> {best[1]}    (x{second[0] / max(best[0], 1e-9):.2f} margin)   [{top3}]")
+            out = best[1].upper() if caps else best[1].lower()
+            print(
+                f"  -> {out}    (x{second[0] / max(best[0], 1e-9):.2f} margin)   [{top3}]"
+            )
     except KeyboardInterrupt:
         print("\nbye")
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--user", default="me")
     ap.add_argument("--data", default=DATA_DIR)
     ap.add_argument("--by", choices=["day", "session"], default="day")
-    ap.add_argument("--band", type=float, default=0.15, help="Sakoe-Chiba band as a fraction of length")
+    ap.add_argument(
+        "--band",
+        type=float,
+        default=0.15,
+        help="Sakoe-Chiba band as a fraction of length",
+    )
     ap.add_argument("--len", type=int, default=100, help="resampled length")
     ap.add_argument("--live", action="store_true")
     ap.add_argument("--variant", default="B", help="feature variant for --live")
